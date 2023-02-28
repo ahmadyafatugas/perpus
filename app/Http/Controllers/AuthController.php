@@ -4,68 +4,56 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\{Hash, Auth};
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
-class AuthController extends Controller
+
+
+class LoginController extends Controller
 {
-    public function login()
+    public function index()
     {
-        return view('auth.login');
-    }
-
-    public function doLogin(Request $request)
-    {
-        $request->validate([
-            'username' => 'required|min:8|exists:users',
-            'password' => 'required|min:8'
+        return view('login.index', [
+            'title' => 'login'
         ]);
-
-        $credentials = $request->only('username', 'password');
-        
-        if(Auth::attempt($credentials)) {
-            // User::g
-            User::where('id_user', User::where('id_user', Auth::user()->id_user)->update(['terakhir_login' => date('h:i:s d/m/Y')]));
-            $request->session()->put(['user' => [
-                'id_user' => Auth::user()->id_user,
-                'kode_user' => Auth::user()->kode_user,
-                'fullname' => Auth::user()->fullname,
-                'username' => Auth::user()->username
-            ]]);
-            return redirect()->intended(route('dashboard.index'));
-        }
-
-        return back()->with('error', 'Login failed!');
     }
 
-    public function register()
+    public function authenticate(Request $request)
     {
-        return view('auth.register');
+        $credentials = $request -> validate([
+			'name' => 'required',
+			'password' => 'required'	
+		]);
+		if (Auth::attempt($credentials))
+		{
+			$request->session()->regenerate();
+			return redirect()->intended('/');
+			$request->session()->flash('LoginSucces','Login berhasil');
+		}
+		return back()->with('ErrorLogin','Login failed!');
     }
 
-    public function doRegister(Request $request)
-    {
-        $data = $request->validate([
-            'fullname' => 'required|min:8',
-            'username' => 'required|min:8',
-            'password' => 'required|min:8'
+    public function index1(){
+		return view('register/index', [
+            'title' => 'register'
         ]);
+	}
+	public function signup(Request $request)
+	{
+		$validatedData = $request -> validate([
+			'name'=> ['required','min:3','unique:users'],
+			'email' =>'required|email|unique:users',
+			'password'=>'required|min:3',
+			
+		]);
+		$validatedData['password'] = Hash::make($validatedData['password']);
+		User::create($validatedData);
+		return redirect('/login')->with('success', 'Registrasi Berhasil');
+	}
 
-        $data['kode_user'] = Str::random(8);
-        $data['role'] = 'user';
-        $data['password'] = Hash::make($request->get('password'));
-
-        User::create($data);
-
-        return redirect()->route('auth.login')->with(['success' => 'Registration successfull!']);
-    }
-
-    public function logout(Request $request)
+    public function logout (Request $request)
     {
-        $request->session()->forget('user');
-        $request->session()->flush();
-    
-        return redirect()->route('auth.login');
+        Auth::logout();
+        return redirect('/login');
     }
 }
